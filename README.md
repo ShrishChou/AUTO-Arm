@@ -1,43 +1,71 @@
-<img width="900" alt="image" src="https://github.com/user-attachments/assets/158b2e49-fe04-482e-b284-c9e55afadde4">
+<img width="900" alt="AUTO Arm assembling an optical bench" src="https://github.com/user-attachments/assets/158b2e49-fe04-482e-b284-c9e55afadde4">
 
-#### The AUTO Arm is an effort by the MIT Theoretical Physics Lab to create a robot that can assemble complex optical configurations quickly, speeding up the process by 90 percent. Furthermore, the robot can also implement AI and ML techniques to optimize layouts and to make second harmonic generation a possibility.
-##Specifications
- - XArm 7
- - Stereo vision using two 4k Cameras: [ELP 4K USB Camera](https://www.amazon.com/ELP-Microphone-5-50mm-Varifocal-Vari-focus/dp/B0BVFKTM6Z/ref=asc_df_B0BVFKTM6Z/?tag=hyprod-20&linkCode=df0&hvadid=693308325592&hvpos=&hvnetw=g&hvrand=53687256479189848&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=9191806&hvtargid=pla-2088917187303&psc=1&mcid=d2580302f178300ebafadc199fc36bd2&gad_source=1)
- - RealSense Depth Camera D435
- - Windows 10 development with Python 3.10
-## Overview
- - The system utilizes **Aruco** Tags to autonomously find the position of elements placed in the bank.
- - The Stereo System finds the approximate location of the tag
- - The Arm moves to the predicted position placing RealSense camera above the tag
- - The Realsense camera fine adjusts and finds depth and orientation using linear algebra
- - Finally, we can pick up the object with 0.1mm translational precision and a tenth of a degree rotational precision
+# AUTO Arm — Autonomous Optical Assembly
+
+**A robot that assembles complex optical configurations to 0.1 mm and 0.1°, roughly 90% faster than doing it by hand.**
+
+Built for the **MIT theoretical physics lab**. Setting up an optical bench — placing mirrors, beam splitters and mounts to interferometric tolerance — is slow, repetitive, and bounded by human patience rather than human skill. AUTO Arm does it autonomously: it finds components in a parts bank, picks them up, and places them accurately enough to assemble a working interferometer.
+
+The longer-term aim is to let ML search over bench layouts directly, which is what makes automated second-harmonic generation experiments tractable.
+
+**Resulted in a publication and a patent.** [Paper](https://anonymous.4open.science/r/AutomateOptics-7C7C/README.md)
+
+---
+
+## How it reaches 0.1 mm
+
+Precision at this scale does not come from one good sensor. It comes from handing off between a wide, coarse sensor and a narrow, accurate one:
+
+1. **ArUco fiducials** mark every component in the parts bank, so the system knows what it is looking at as well as where.
+2. **A 4K stereo pair** localizes the tag coarsely across the whole bench — wide field of view, enough accuracy to get the arm into the neighbourhood.
+3. **The arm repositions**, placing the wrist-mounted RealSense directly above the tag.
+4. **The RealSense refines** position, depth and orientation up close, where its accuracy is highest. Orientation is recovered from the tag corner geometry.
+5. **The pick executes** at 0.1 mm translational and 0.1° rotational precision.
+
+The coarse-to-fine handoff is the core idea: the stereo rig alone cannot resolve 0.1 mm across a bench, and the depth camera alone cannot find a component it is not already pointed at.
+
+## Hardware
+
+| | |
+|---|---|
+| Arm | UFACTORY xArm 7 |
+| Stereo | 2 × [ELP 4K USB cameras](https://www.amazon.com/dp/B0BVFKTM6Z) (5–50 mm varifocal) |
+| Depth | Intel RealSense D435, wrist-mounted |
+| Host | Windows 10, Python 3.10 |
 
 ## Code
-- [alignment.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/alginment.py): Code for the assembly of an interferometer setup to test the precision of the robotic arm
-- [aligment_with_drop.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/aligment_with_drop.py): Code for the assembly of an interferometer with release of the mirror
-- [finding_camera.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/finding_camera.py): Code for finding the ports where the cameras are located. Change port values based on availability (varies per machine)
-- [fine_adjustment.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/fine_adjustment.py): Code for fine-adjustment using solely RealSense camera
-- [full_adjustment.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/fulladjustment.py): **Main Code** for running the full autonomous pick up code
-- [internaltest.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/internaltest.py): Code for testing rotation calculations
-- [mainv2.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/mainv2.py): First Version of working code without depth sensing and purely stereo system
-- [stereo_callibration.npz](https://github.com/ShrishChou/AUTO-Arm/blob/main/stereo_calibration.npz): npz file generated from calibration of stereo system (currently using v2
 
-## Using
-- Run [fulladjustment.py](https://github.com/ShrishChou/AUTO-Arm/blob/main/fulladjustment.py) and wait for the 4k cameras to boot up.
-- Once the start procedure has finished and the robot has homed, place the item and make sure the cameras can see the tag.
+| file | role |
+|---|---|
+| `fulladjustment.py` | **main entry point** — the full autonomous pick-and-place routine |
+| `alginment.py` | interferometer assembly, used to test end-to-end placement precision |
+| `aligment_with_drop.py` | interferometer assembly including mirror release |
+| `beam_aligment.py` | beam alignment routines |
+| `test_center_beam_code.py` | beam-centering tests |
+| `fine_adjustment.py` | close-range refinement using the RealSense alone |
+| `mainv2.py` | earlier version: pure stereo, no depth sensing |
+| `finding_camera.py` | enumerate camera ports (indices vary per machine — run this first) |
+| `internaltest.py` | rotation-math validation |
+| `motor_control_test.py` | low-level arm motion checks |
+| `thorcam.py` | ThorLabs camera interface |
+| `stereo_calibration.npz` | saved stereo calibration intrinsics/extrinsics |
 
-## Issues/Warnings and Solutions
-- IP Issues: When setting up IP for the computer, set alternate IP configuration to 192.168.1 with basic masks and DNS Servers. Check that packages are being recieved and sent afterwards
-- Camera port Access: Ensure that many cameras are not connected at the same time, ensure the camera app is off at the time of use, and make sure to use finding_camera.py to find ports of cameras before hand
-- Calibration Issues: Use chackerboard of known size and measure dimensions of boxes after print. **Specified checkerboard size may differ to print.** Adjust scaling factor by measuring actual distance between camera and predicted translational distance
-- RealSense Issues: Ensure correct version of Python is downloaded (3.6~3.10) if not you must wipe the virtual environment, downgrade, and then activate a new environment
-- Movement Issues: Using the given set_position will often fail. For this reason I have developed a movement code that utilizes trigonometry and planned motion to eliminate collisions. Do not use set_position and instead utilize the pickup and drop methods
-- Camera Crash issues: Due to the running of 2 4k cameras and a RealSense camera, some systems cannot handle the numerous feeds. For this you can change the stream code to instead take a singular picture at the start of each motion rather than keeping continuous streams for the 4k cameras.
-- Gripper VS Suction Gripper: For the use of different grippers, different methods have been made. Depending on which attachment is being used please use the correct code.
-- Crashing of robot: Ensure that robot joints are not overheating and make sure the robot is enabled with sufficient power
-- Detecting Failure: Ensure that correct cameras are being used and make sure that tag is in range of **both** cameras due to stereo system
-- Issues in 2nd quadrant: Due to rotational constraints and issues with set_position, be sure to only let the base servo turn to a max of 90 degrees (from the horizontal) and let set_position do calculations
-- Issues with horizontal movement: Cameras may or may not be reversed. In our code the horizontal is reversed so we have negated the values. Be sure to adjust the value on your cases
-- **Warning**: **Do NOT let the arm crash into the ground and always be positioned near the emergency stop button in case of failure**
-- **Warning**: **Be sure to not move stereo system after calibration or else readings will fail**
+## Getting started
+
+```bash
+pip install -r requirements.txt
+python finding_camera.py     # find your camera port indices, then set them in the scripts
+python fulladjustment.py     # full autonomous pick-and-place
+```
+
+Camera port indices are machine-specific and are the most common first-run failure. Calibration lives in `stereo_calibration.npz`; regenerate it if you change lenses or baseline.
+
+For choosing lenses and working distances, [this note on focal length and field of view](https://www.edmundoptics.com/knowledge-center/application-notes/imaging/understanding-focal-length-and-field-of-view/) is the reference used when configuring the stereo rig.
+
+## Related
+
+The fiducial detection, stereo calibration and 6D pose estimation this system is built on were developed in **[AprilTag_Detection](https://github.com/ShrishChou/AprilTag_Detection)**.
+
+## Repository note
+
+This repository carries its committed `.venv/`, build output, and captured frame archives alongside the source, so a clone is large. The code you want is the top-level Python files listed above.
